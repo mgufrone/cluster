@@ -1,0 +1,5 @@
+.env.sh
+.idea
+.terraform.lock.hcl
+.terraform
+secrets.tfvars

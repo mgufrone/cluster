@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "ws-deployment"
+spec:
+  selector:
+    matchLabels:
+      app: "ws"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: "ws"
+    spec:
+      containers:
+        - image: mgufrone/websocket-sample:0.1.3
+          imagePullPolicy: Always
+          name: "ws"
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-ws
+  labels:
+    app: servicelabel
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      name: ws
+  selector:
+    app: "ws"
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress-ws
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`just-testing.mgufrone.xyz`) && PathPrefix(`/websocket`)
+      kind: Rule
+      services:
+        - name: service-ws
+          port: ws
+      middlewares:
+        - name: ws-stripprefix
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ws-stripprefix
+spec:
+  stripPrefix:
+    prefixes:
+      - /websocket

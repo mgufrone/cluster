@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "2048-deployment"
+spec:
+  selector:
+    matchLabels:
+      app: "2048"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: "2048"
+    spec:
+      containers:
+        - image: alexwhen/docker-2048
+          imagePullPolicy: Always
+          name: "2048"
+          ports:
+            - containerPort: 80
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service2048
+  labels:
+    app: servicelabel
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      name: http
+  selector:
+    app: "2048"
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress2048
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`just-testing.mgufrone.xyz`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: service2048
+          port: http
+

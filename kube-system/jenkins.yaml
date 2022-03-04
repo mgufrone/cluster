@@ -1,0 +1,279 @@
+agent:
+  yamlMergeStrategy: "merge"
+  podTemplates:
+    node: |
+      - name: node
+        label: jenkins-node
+        yamlMergeStrategy: merge
+        inheritFrom: builder
+        containers:
+        - name: node
+          image: node:16
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    golang: |
+      - name: golang
+        yamlMergeStrategy: merge
+        inheritFrom: builder
+        label: jenkins-golang
+        containers:
+        - name: golang
+          image: golang:1.17
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    builder: |
+      - name: builder
+        label: jenkins-builder
+        yamlMergeStrategy: merge
+        yaml: |
+          spec:
+            metadata:
+              labels:
+                podType: builder
+            volumes:
+              - name: dockerconfig
+                projected:
+                  sources:
+                    - secret:
+                        name: regcred
+                        items:
+                          - key: .dockerconfigjson
+                            path: regcred.json
+                    - secret:
+                        name: ghcr
+                        items:
+                          - key: .dockerconfigjson
+                            path: config.json
+            containers:
+            - name: kaniko
+              volumeMounts:
+              - mountPath: /kaniko/.docker
+                name: dockerconfig
+            affinity:
+              podAntiAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  labelSelectorTerms:
+                  - matchExpressions:
+                    - key: podType
+                      operator: In
+                      values:
+                      - builder
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                  - matchExpressions:
+                    - key: builder
+                      operator: In
+                      values:
+                      - medium
+                      - highcpu
+            tolerations:
+            - key: "builder"
+              operator: "Exists"
+              effect: "NoSchedule"
+        containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.7.0-debug
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    helm: |
+      - name: helm
+        yamlMergeStrategy: merge
+        label: jenkins-helm
+        yaml: |
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: builder
+                    operator: In
+                    values:
+                    - medium
+                    - highcpu
+          tolerations:
+          - key: "builder"
+            operator: "Exists"
+            effect: "NoSchedule"
+        containers:
+        - name: helm
+          image: alpine/helm:3.6.3
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    kubectl: |
+      - name: kubectl
+        label: jenkins-kubectl
+        yamlMergeStrategy: merge
+        containers:
+        - name: kubectl
+          image: dtzar/helm-kubectl:3.6.3
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    aws: |
+      - name: aws
+        label: jenkins-aws
+        yamlMergeStrategy: merge
+        containers:
+        - name: aws
+          image: amazon/aws-cli:2.3.0
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    curl: |
+      - name: curl
+        label: jenkins-curl
+        yamlMergeStrategy: merge
+        containers:
+        - name: curl
+          image: badouralix/curl-jq:alpine
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    redis: |
+      - name: redis
+        label: jenkins-redis
+        yamlMergeStrategy: merge
+        containers:
+        - name: redis
+          image: redis:6.2.6
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+    platform-frontend-builder: |
+      - name: platform-frontend-builder
+        label: platform-frontend-builder
+        yamlMergeStrategy: merge
+        inheritFrom: "aws kubectl helm builder node"
+        yaml: |
+          spec:
+            containers:
+              - name: node
+                envFrom:
+                  - secretRef:
+                      name: frontend
+
+    deployment: |
+      - name: deployment
+        label: jenkins-deployment
+        yamlMergeStrategy: merge
+        containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:debug
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+        - name: helm
+          image: alpine/helm:3.6.3
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+        - name: kubectl
+          image: bitnami/kubectl:1.21.2
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
+
+persistence:
+  enabled: true
+  ## A manually managed Persistent Volume and Claim
+  ## Requires persistence.enabled: true
+  ## If defined, PVC must be created manually before volume will be bound
+  existingClaim:
+  ## jenkins data Persistent Volume Storage Class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is
+  ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  ##   GKE, AWS & OpenStack)
+  ##
+  storageClass:
+  annotations: {}
+  accessMode: "ReadWriteOnce"
+  size: "8Gi"
+  volumes:
+  #  - name: nothing
+  #    emptyDir: {}
+  mounts:
+controller:
+  initializeOnce: true
+  overwritePluginsFromImage: false
+  additionalExistingSecrets:
+    - name: creds
+      keyName: gh-username
+    - name: creds
+      keyName: gh-token
+    - name: creds
+      keyName: slack-app
+    - name: creds
+      keyName: slack-bot
+    - name: creds
+      keyName: webhook-token
+  JCasC:
+    configScripts:
+      shared-libraries: |
+        unclassified:
+          globalLibraries:
+            libraries:
+            - defaultVersion: "main"
+              name: "shared-pipeline"
+              retriever:
+                modernSCM:
+                  scm:
+                    git:
+                      credentialsId: "github"
+                      remote: "https://github.com/mgufrone/shared-pipeline"
+                      traits:
+                      - "gitBranchDiscovery"
+      plugins-configs: |
+        unclassified:
+          slackNotifier:
+            botUser: true
+            sendAsText: false
+            room: "notification"
+            teamDomain: "gufy"
+            tokenCredentialId: "slack-token"
+      jenkins-casc-configs: |
+        credentials:
+          system:
+            domainCredentials:
+            - credentials:
+              - string:
+                  id: slack-token
+                  description: "slack token"
+                  scope: GLOBAL
+                  secret: ${creds-slack-bot}
+              - string:
+                  id: webhook-token
+                  description: "github webhook token"
+                  scope: GLOBAL
+                  secret: ${creds-webhook-token}
+              - usernamePassword:
+                  description: "github creds"
+                  id: "github"
+                  password: ${creds-gh-token}
+                  scope: GLOBAL
+                  username: ${creds-gh-username}
+  image: mgufrone/jenkins-plugin
+  ingress:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.tls: "true"
+  installPlugins: false
+  tag: 1.3.0
+
