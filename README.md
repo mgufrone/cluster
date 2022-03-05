@@ -4,10 +4,12 @@
 - [x] kubernetes
 - [x] traefik
 - [x] alb with certificate
-- [ ] cluster autoscaler
-- [ ] prometheus
-- [ ] loki
-- [ ] grafana
+- [x] cluster autoscaler
+- [x] prometheus
+- [x] loki
+- [x] grafana
+- [ ] keda operator
+- [ ] external dns
 - sample rest app (golang or whatevs)
 - sample websocket app
 
