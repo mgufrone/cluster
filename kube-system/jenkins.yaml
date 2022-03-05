@@ -73,6 +73,7 @@ agent:
                           operator: In
                           values:
                           - builder
+                  topologyKey: topology.kubernetes.io/zone
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
