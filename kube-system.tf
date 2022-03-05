@@ -118,6 +118,32 @@ resource "kubernetes_manifest" "assets_compressor" {
     }
   }
 }
+resource "kubernetes_manifest" "traefik_dashboard" {
+  depends_on = [helm_release.traefik]
+  manifest = {
+    apiVersion = "traefik.containo.us/v1alpha1"
+    kind       = "IngressRoute"
+    metadata = {
+      name      = "dashboard"
+      namespace = local.system_namespace
+    }
+    spec = {
+      entryPoints = ["web"]
+      routes = [
+        {
+          match = "Host(`traefik.localhost`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`))"
+          kind = "Rule"
+          services = [
+            {
+              name = "api@internal"
+              kind = "TraefikService"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
 
 resource "helm_release" "jenkins" {
   depends_on = [helm_release.traefik, kubernetes_secret.ghcr]
@@ -211,8 +237,8 @@ resource "kubernetes_default_service_account" "patch_service_account" {
 resource "kubernetes_secret" "creds" {
   depends_on = [kubernetes_namespace.all_namespaces]
   for_each = {
-  for index, namespace in local.allNamespace :
-  index => namespace
+    for index, namespace in local.allNamespace :
+    index => namespace
   }
   metadata {
     namespace = each.value
@@ -230,8 +256,8 @@ resource "kubernetes_secret" "creds" {
 resource "kubernetes_secret" "db-creds" {
   depends_on = [kubernetes_namespace.all_namespaces]
   for_each = {
-  for index, namespace in local.allNamespace :
-  index => namespace
+    for index, namespace in local.allNamespace :
+    index => namespace
   }
   metadata {
     namespace = each.value
@@ -302,13 +328,13 @@ resource "helm_release" "grafana" {
         MYSQL_ROOT_PASSWORD = {
           secretKeyRef = {
             name = "db-creds"
-            key = "mysql-root"
+            key  = "mysql-root"
           }
         }
         SLACK_TOKEN = {
           secretKeyRef = {
             name = "creds"
-            key = "slack-bot"
+            key  = "slack-bot"
           }
         }
       }
@@ -328,12 +354,12 @@ resource "helm_release" "grafana" {
 resource "kubernetes_config_map" "dashboard" {
   metadata {
     namespace = local.system_namespace
-    name = "grafana-dashboards"
+    name      = "grafana-dashboards"
   }
   data = {
-    "app-log.json" = file("./kube-system/dashboard/app-log.json")
+    "app-log.json"            = file("./kube-system/dashboard/app-log.json")
     "kubernetes-monitor.json" = file("./kube-system/dashboard/kubernetes-monitor.json")
-    "stats.json" = file("./kube-system/dashboard/stats.json")
+    "stats.json"              = file("./kube-system/dashboard/stats.json")
   }
 }
 
@@ -349,10 +375,10 @@ resource "kubernetes_secret" "queue-manager" {
   }
   type = "Opaque"
   data = {
-    "rabbitmq-username" = "rabbit-monitoring"
-    "rabbitmq-password" = random_string.rabbitmq_password.result
-    "rabbitmq-erlang-cookie"   = random_string.rabbitmq_cookie.result
-    "rabbitmq-host"     = "rabbitmq.${local.system_namespace}"
+    "rabbitmq-username"      = "rabbit-monitoring"
+    "rabbitmq-password"      = random_string.rabbitmq_password.result
+    "rabbitmq-erlang-cookie" = random_string.rabbitmq_cookie.result
+    "rabbitmq-host"          = "rabbitmq.${local.system_namespace}"
   }
 }
 resource "helm_release" "rabbitmq" {
@@ -380,5 +406,73 @@ resource "helm_release" "redis" {
   set {
     name  = "auth.password"
     value = random_string.redis_password.result
+  }
+}
+
+## external dns
+module "trust-external-dns" {
+  depends_on      = [local_file.kubeconfig]
+  source          = "./modules/trust-iam"
+  service_account = "external-dns"
+  namespace       = local.system_namespace
+  cluster_name    = local.cluster_name
+  oidc_url        = module.eks.cluster_oidc_issuer_url
+  source_json     = file("./iam/external-dns.json")
+  role_name       = "external-dns"
+}
+resource "helm_release" "external_dns" {
+  chart      = "external-dns"
+  name       = "external-dns"
+  repository = "https://charts.bitnami.com/bitnami"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/external-dns.yaml"),
+    yamlencode({
+      domainFilters = [var.domain, "mgufrone.xyz", "mgufron.com"]
+      provider      = "aws"
+      serviceAccount = {
+        create = false
+        name   = module.trust-external-dns.service_account
+      }
+      txtPrefix = local.cluster_name
+    })
+  ]
+}
+resource "helm_release" "mysql" {
+  chart      = "mysql"
+  name       = "mysql"
+  repository = "https://charts.bitnami.com/bitnami"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/mysql.yaml"),
+    yamlencode({
+      auth = {
+        database     = "jobs"
+        username     = "normal_user"
+        password     = random_string.mysql_user_password.result
+        rootPassword = random_string.mysql_password.result
+      }
+    })
+  ]
+}
+
+resource "kubernetes_cluster_role_binding" "jenkins-admin" {
+  metadata {
+    name = "jenkins-admin-binding"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin"
+  }
+  subject {
+    kind = "ServiceAccount"
+    name = "jenkins"
+    namespace = local.system_namespace
+  }
+  subject {
+    kind = "ServiceAccount"
+    name = "default"
+    namespace = local.system_namespace
   }
 }

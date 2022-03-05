@@ -183,8 +183,7 @@ ingress:
   # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
   # ingressClassName: nginx
   # Values can be templated
-  annotations:
-    traefik.ingress.kubernetes.io/router.tls: "true"
+  annotations: {}
   labels: {}
   path: /
   # pathType is only for k8s >= 1.1=
