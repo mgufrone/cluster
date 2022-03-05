@@ -86,21 +86,6 @@ agent:
       - name: helm
         yamlMergeStrategy: merge
         label: jenkins-helm
-        yaml: |
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                - matchExpressions:
-                  - key: builder
-                    operator: In
-                    values:
-                    - medium
-                    - highcpu
-          tolerations:
-          - key: "builder"
-            operator: "Exists"
-            effect: "NoSchedule"
         containers:
         - name: helm
           image: alpine/helm:3.6.3

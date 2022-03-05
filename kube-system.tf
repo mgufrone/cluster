@@ -5,9 +5,46 @@ locals {
     "--ping",
     "--ping.entrypoint=web",
   ]
+  dashboards = ["app-log", "kubernetes-monitor", "stats"]
 }
 resource "random_string" "webhook_token" {
   length = 12
+}
+resource "random_string" "mysql_user_password" {
+  length      = 16
+  min_lower   = 2
+  min_numeric = 2
+  min_upper   = 2
+}
+resource "random_string" "grafana_password" {
+  length      = 16
+  min_lower   = 2
+  min_numeric = 2
+  min_upper   = 2
+}
+resource "random_string" "mysql_password" {
+  length      = 16
+  min_lower   = 2
+  min_numeric = 2
+  min_upper   = 2
+}
+resource "random_string" "redis_password" {
+  length      = 16
+  min_lower   = 2
+  min_numeric = 2
+  min_upper   = 2
+}
+resource "random_string" "rabbitmq_password" {
+  length      = 16
+  min_lower   = 2
+  min_numeric = 2
+  min_upper   = 2
+}
+resource "random_string" "rabbitmq_cookie" {
+  length      = 16
+  min_lower   = 2
+  min_numeric = 2
+  min_upper   = 2
 }
 data "aws_alb" "installed_alb" {
   depends_on = [helm_release.alb_ingress_controller]
@@ -172,8 +209,13 @@ resource "kubernetes_default_service_account" "patch_service_account" {
 }
 
 resource "kubernetes_secret" "creds" {
+  depends_on = [kubernetes_namespace.all_namespaces]
+  for_each = {
+  for index, namespace in local.allNamespace :
+  index => namespace
+  }
   metadata {
-    namespace = local.system_namespace
+    namespace = each.value
     name      = "creds"
   }
   type = "Opaque"
@@ -183,5 +225,160 @@ resource "kubernetes_secret" "creds" {
     "slack-bot"     = var.SLACK_BOT_TOKEN
     "gh-username"   = var.GITHUB_EMAIL
     "webhook-token" = random_string.webhook_token.result
+  }
+}
+resource "kubernetes_secret" "db-creds" {
+  depends_on = [kubernetes_namespace.all_namespaces]
+  for_each = {
+  for index, namespace in local.allNamespace :
+  index => namespace
+  }
+  metadata {
+    namespace = each.value
+    name      = "db-creds"
+  }
+  type = "Opaque"
+  data = {
+    "redis"      = random_string.redis_password.result
+    "mysql-root" = random_string.mysql_password.result
+    "mysql-user" = random_string.mysql_user_password.result
+  }
+}
+
+resource "helm_release" "prometheus" {
+  chart      = "prometheus"
+  name       = "prometheus"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/prometheus.yaml"),
+  ]
+}
+resource "helm_release" "prometheus-adapter" {
+  chart      = "prometheus-adapter"
+  name       = "prometheus-adapter"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/prometheus-adapter.yaml"),
+  ]
+}
+
+resource "helm_release" "promtail" {
+  chart      = "promtail"
+  name       = "promtail"
+  repository = "https://grafana.github.io/helm-charts"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/promtail.yaml"),
+  ]
+  set {
+    name  = "loki.serviceName"
+    value = "loki"
+  }
+}
+resource "helm_release" "loki" {
+  chart      = "loki"
+  name       = "loki"
+  repository = "https://grafana.github.io/helm-charts"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/loki.yaml"),
+  ]
+}
+# grafana
+resource "helm_release" "grafana" {
+  chart      = "grafana"
+  name       = "grafana"
+  repository = "https://grafana.github.io/helm-charts"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/grafana.yaml"),
+    yamlencode({
+      ingress = {
+        hosts = ["monitoring.${local.system_namespace}.${var.domain}"]
+      }
+      envValueFrom = {
+        MYSQL_ROOT_PASSWORD = {
+          secretKeyRef = {
+            name = "db-creds"
+            key = "mysql-root"
+          }
+        }
+        SLACK_TOKEN = {
+          secretKeyRef = {
+            name = "creds"
+            key = "slack-bot"
+          }
+        }
+      }
+    })
+  ]
+  set {
+    name  = "adminUsername"
+    value = "admin"
+  }
+  set {
+    name  = "adminPassword"
+    value = random_string.grafana_password.result
+  }
+}
+
+## grafana dashboard
+resource "kubernetes_config_map" "dashboard" {
+  metadata {
+    namespace = local.system_namespace
+    name = "grafana-dashboards"
+  }
+  data = {
+    "app-log.json" = file("./kube-system/dashboard/app-log.json")
+    "kubernetes-monitor.json" = file("./kube-system/dashboard/kubernetes-monitor.json")
+    "stats.json" = file("./kube-system/dashboard/stats.json")
+  }
+}
+
+## rabbitmq
+resource "kubernetes_secret" "queue-manager" {
+  for_each = {
+    for index, namespace in local.allNamespace :
+    index => namespace
+  }
+  metadata {
+    name      = "queue-manager"
+    namespace = each.value
+  }
+  type = "Opaque"
+  data = {
+    "rabbitmq-username" = "rabbit-monitoring"
+    "rabbitmq-password" = random_string.rabbitmq_password.result
+    "rabbitmq-erlang-cookie"   = random_string.rabbitmq_cookie.result
+    "rabbitmq-host"     = "rabbitmq.${local.system_namespace}"
+  }
+}
+resource "helm_release" "rabbitmq" {
+  chart      = "rabbitmq"
+  name       = "rabbitmq"
+  repository = "https://charts.bitnami.com/bitnami"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/rabbitmq.yaml"),
+  ]
+  set {
+    name  = "ingress.hostname"
+    value = "queues.${local.system_namespace}.${var.domain}"
+  }
+}
+
+resource "helm_release" "redis" {
+  chart      = "redis"
+  name       = "redis"
+  repository = "https://charts.bitnami.com/bitnami"
+  namespace  = local.system_namespace
+  values = [
+    file("./kube-system/redis.yaml"),
+  ]
+  set {
+    name  = "auth.password"
+    value = random_string.redis_password.result
   }
 }
