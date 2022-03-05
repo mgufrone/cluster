@@ -20,4 +20,9 @@ output "grafana_password" {
 }
 output "kubeconfig" {
   value = local.kubeconfig
+
+}
+output "github_webhook" {
+  value = random_string.webhook_token.result
+  sensitive = true
 }

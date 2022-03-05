@@ -1,11 +1,21 @@
 agent:
   yamlMergeStrategy: "merge"
   podTemplates:
+    busybox: |
+      - name: busybox
+        yamlMergeStrategy: merge
+        label: jenkins-busybox
+        containers:
+        - name: busybox
+          image: busybox:1.34.0
+          command: "sleep"
+          args: "infinity"
+          ttyEnabled: true
+          privileged: false
     node: |
       - name: node
         label: jenkins-node
         yamlMergeStrategy: merge
-        inheritFrom: builder
         containers:
         - name: node
           image: node:16
@@ -16,7 +26,6 @@ agent:
     golang: |
       - name: golang
         yamlMergeStrategy: merge
-        inheritFrom: builder
         label: jenkins-golang
         containers:
         - name: golang
@@ -56,7 +65,7 @@ agent:
             affinity:
               podAntiAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
-                  labelSelectorTerms:
+                - labelSelector:
                   - matchExpressions:
                     - key: podType
                       operator: In
@@ -137,19 +146,11 @@ agent:
           args: "infinity"
           ttyEnabled: true
           privileged: false
-    platform-frontend-builder: |
-      - name: platform-frontend-builder
-        label: platform-frontend-builder
+    frontend-builder: |
+      - name: frontend-builder
+        label: frontend-builder
         yamlMergeStrategy: merge
-        inheritFrom: "aws kubectl helm builder node"
-        yaml: |
-          spec:
-            containers:
-              - name: node
-                envFrom:
-                  - secretRef:
-                      name: frontend
-
+        inheritFrom: "aws kubectl helm builder node busybox"
     deployment: |
       - name: deployment
         label: jenkins-deployment
