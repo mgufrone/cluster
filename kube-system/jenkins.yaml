@@ -65,12 +65,14 @@ agent:
             affinity:
               podAntiAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                  - matchExpressions:
-                    - key: podType
-                      operator: In
-                      values:
-                      - builder
+                - weight:
+                  podAffinityTerm:
+                    labelSelector:
+                      - matchExpressions:
+                        - key: podType
+                          operator: In
+                          values:
+                          - builder
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
