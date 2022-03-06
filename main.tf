@@ -205,6 +205,7 @@ module "eks" {
       min_size            = 1
       desired_size        = 1
 
+      bootstrap_extra_args = "--container-runtime containerd --dns-cluster-ip 10.1.0.10 --kubelet-extra-args \"--node-labels=purpose=general\""
       mixed_instances_policy = {
         instances_distribution = {
           on_demand_base_capacity                  = 0
@@ -247,6 +248,7 @@ module "eks" {
       disk_size           = 30
       ami_release_version = var.worker_version
 
+      bootstrap_extra_args = "--container-runtime containerd --dns-cluster-ip 10.1.0.10 --kubelet-extra-args \"--node-labels=purpose=builder,builder=medium --register-with-taints=builder=true:NoSchedule\""
       mixed_instances_policy = {
         instances_distribution = {
           on_demand_base_capacity                  = 0
@@ -265,7 +267,7 @@ module "eks" {
           },
         ]
       }
-      instance_types = ["t3a.xlarge", "t3.xlarge"]
+      instance_types = ["t3a.xlarge"]
       capacity_type  = "SPOT"
       k8s_labels = {
         purpose = "builder"

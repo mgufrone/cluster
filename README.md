@@ -9,7 +9,7 @@
 - [x] loki
 - [x] grafana
 - [ ] keda operator
-- [ ] external dns
+- [x] external dns
 - sample rest app (golang or whatevs)
 - sample websocket app
 

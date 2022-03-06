@@ -18,7 +18,7 @@ agent:
         yamlMergeStrategy: merge
         containers:
         - name: node
-          image: node:16
+          image: node:14
           command: "sleep"
           args: "infinity"
           ttyEnabled: true
@@ -64,16 +64,16 @@ agent:
                 name: dockerconfig
             affinity:
               podAntiAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                - weight:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
                   podAffinityTerm:
                     labelSelector:
-                      - matchExpressions:
-                        - key: podType
-                          operator: In
-                          values:
-                          - builder
-                  topologyKey: topology.kubernetes.io/zone
+                      matchExpressions:
+                      - key: podType
+                        operator: In 
+                        values:
+                        - builder
+                    topologyKey: kubernetes.io/hostname
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
