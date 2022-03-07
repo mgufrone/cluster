@@ -174,7 +174,7 @@ agent:
                   valueFrom:
                     secretKeyRef:
                       name: db-creds
-                      key: mysql-user
+                      key: mysql-root
     backend-migrator-dev: |
       - name: backend-migrator-dev
         label: backend-migrator-dev

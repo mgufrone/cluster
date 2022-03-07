@@ -18,3 +18,8 @@ variable "source_json" {
   description = "path to iam source json file"
 }
 
+variable "create_service_account" {
+  type = bool
+  default = true
+  description = "to mark if service account should be created"
+}

@@ -216,6 +216,21 @@ resource "kubernetes_secret" "ghcr" {
     })
   }
 }
+module "trust-s3" {
+  depends_on = [local_file.kubeconfig, kubernetes_namespace.all_namespaces]
+  for_each = {
+  for index, namespace in local.allNamespace:
+  index => namespace
+  }
+  source          = "./modules/trust-iam"
+  service_account = "default"
+  namespace       = each.value
+  cluster_name    = local.cluster_name
+  oidc_url        = module.eks.cluster_oidc_issuer_url
+  source_json     = file("./iam/s3-artifacts.json")
+  role_name       = "s3-role-${each.value}-default"
+  create_service_account = false
+}
 
 resource "kubernetes_default_service_account" "patch_service_account" {
   depends_on = [kubernetes_namespace.all_namespaces]
@@ -230,6 +245,9 @@ resource "kubernetes_default_service_account" "patch_service_account" {
     name = "regcred"
   }
   metadata {
+    annotations = {
+      "eks.amazonaws.com/role-arn" = replace(module.trust-s3[0].role_arn, "${kubernetes_namespace.all_namespaces[0].metadata[0].name}:default", "${each.value}:default")
+    }
     namespace = each.value
   }
 }
@@ -514,3 +532,4 @@ resource "kubernetes_manifest" "keda-rabbit-auth" {
     targetRefName = "keda-rabbitmq-auth"
   }))
 }
+
