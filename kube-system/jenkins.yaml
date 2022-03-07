@@ -177,13 +177,13 @@ agent:
                       key: mysql-user
     backend-migrator-dev: |
       - name: backend-migrator-dev
-        label: backend-mgirator-dev
+        label: backend-migrator-dev
         inheritFrom: backend-migrator
         yamlMergeStrategy: merge
         namespace: dev
     backend-migrator-production: |
       - name: backend-migrator-production
-        label: backend-mgirator-production
+        label: backend-migrator-production
         inheritFrom: backend-migrator
         yamlMergeStrategy: merge
         namespace: production
