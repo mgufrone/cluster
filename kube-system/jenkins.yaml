@@ -18,7 +18,7 @@ agent:
         yamlMergeStrategy: merge
         containers:
         - name: node
-          image: node:14
+          image: node:16
           command: "sleep"
           args: "infinity"
           ttyEnabled: true
@@ -39,10 +39,10 @@ agent:
         label: jenkins-builder
         yamlMergeStrategy: merge
         yaml: |
+          metadata:
+            labels:
+              podType: builder
           spec:
-            metadata:
-              labels:
-                podType: builder
             volumes:
               - name: dockerconfig
                 projected:
@@ -64,16 +64,14 @@ agent:
                 name: dockerconfig
             affinity:
               podAntiAffinity:
-                preferredDuringSchedulingIgnoredDuringExecution:
-                - weight: 100
-                  podAffinityTerm:
-                    labelSelector:
-                      matchExpressions:
-                      - key: podType
-                        operator: In 
-                        values:
-                        - builder
-                    topologyKey: kubernetes.io/hostname
+                requiredDuringSchedulingIgnoredDuringExecution:
+                - topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchExpressions:
+                    - key: podType
+                      operator: In 
+                      values:
+                      - builder
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
@@ -154,6 +152,31 @@ agent:
         label: frontend-builder
         yamlMergeStrategy: merge
         inheritFrom: "aws kubectl helm builder node busybox"
+    backend-builder: |
+      - name: backend-builder
+        label: backend-builder
+        yamlMergeStrategy: merge
+        inheritFrom: "golang aws kubectl helm builder busybox"
+    backend-migrator: |
+      - name: backend-migrator
+        label: backend-migrator
+        yamlMergeStrategy: merge
+        inheritFrom: golang
+        yaml: |
+          spec:
+            containers:
+            - name: golang
+              envFrom:
+                - configMapRef:
+                    name: job-app
+              env:
+                - name: DATABASE_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: db-creds
+                      key: mysql-user
+    backend-migrator-dev:
+    backend-migrator-production:
     deployment: |
       - name: deployment
         label: jenkins-deployment

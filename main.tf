@@ -261,10 +261,6 @@ module "eks" {
             instance_type     = "t3a.xlarge"
             weighted_capacity = "1"
           },
-          {
-            instance_type     = "t3.2xlarge"
-            weighted_capacity = "2"
-          },
         ]
       }
       instance_types = ["t3a.xlarge"]
