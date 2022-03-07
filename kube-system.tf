@@ -516,7 +516,7 @@ resource "kubernetes_secret" "keda-rabbitmq-auth" {
     namespace = each.value
   }
   data = {
-    host = "amqp://rabbit-monitoring:${random_string.rabbitmq_password.result}@rabbitmq-headless.kube-system:5672/"
+    host = "amqp://rabbit-monitoring:'${random_string.rabbitmq_password.result}'@rabbitmq-headless.kube-system:5672/"
   }
 }
 

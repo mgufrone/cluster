@@ -4,6 +4,7 @@ data "aws_route53_zone" "main_host" {
 resource "aws_acm_certificate" "mgufrone-xyz-certificate" {
   domain_name       = "*.${data.aws_route53_zone.main_host.name}"
   subject_alternative_names = concat([
+    data.aws_route53_zone.main_host.name,
     "*.dev.${data.aws_route53_zone.main_host.name}",
     ], var.alt_domains)
   validation_method = "DNS"
