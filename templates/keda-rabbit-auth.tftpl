@@ -1,0 +1,10 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: ${name}
+  namespace: ${namespace}
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: ${targetRefName}
+      key: host

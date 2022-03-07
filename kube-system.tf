@@ -476,3 +476,41 @@ resource "kubernetes_cluster_role_binding" "jenkins-admin" {
     namespace = local.system_namespace
   }
 }
+
+resource "helm_release" "keda" {
+  depends_on = [local_file.kubeconfig]
+  chart = "keda"
+  repository = "https://kedacore.github.io/charts"
+  name  = "keda"
+  namespace = local.system_namespace
+  values = [
+    file("./kube-system/keda.yaml"),
+  ]
+}
+resource "kubernetes_secret" "keda-rabbitmq-auth" {
+  depends_on = [helm_release.keda]
+  for_each = {
+    for i, v in local.allNamespace:
+    i => v
+  }
+  metadata {
+    name = "keda-rabbitmq-auth"
+    namespace = each.value
+  }
+  data = {
+    host = "amqp://rabbit-monitoring:${random_string.rabbitmq_password.result}@rabbitmq-headless.kube-system:5672/"
+  }
+}
+
+resource "kubernetes_manifest" "keda-rabbit-auth" {
+  depends_on = [helm_release.keda]
+  for_each = {
+  for i, v in local.allNamespace:
+  i => v
+  }
+  manifest = yamldecode(templatefile("./templates/keda-rabbit-auth.tftpl", {
+    namespace = each.value
+    name = "keda-rabbitmq-auth"
+    targetRefName = "keda-rabbitmq-auth"
+  }))
+}

@@ -175,8 +175,18 @@ agent:
                     secretKeyRef:
                       name: db-creds
                       key: mysql-user
-    backend-migrator-dev:
-    backend-migrator-production:
+    backend-migrator-dev: |
+      - name: backend-migrator-dev
+        label: backend-mgirator-dev
+        inheritFrom: backend-migrator
+        yamlMergeStrategy: merge
+        namespace: dev
+    backend-migrator-production: |
+      - name: backend-migrator-production
+        label: backend-mgirator-production
+        inheritFrom: backend-migrator
+        yamlMergeStrategy: merge
+        namespace: production
     deployment: |
       - name: deployment
         label: jenkins-deployment
