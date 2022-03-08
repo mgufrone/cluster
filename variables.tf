@@ -18,14 +18,6 @@ variable "alt_domains" {
   type = list(string)
   default = [
     "*.kube-system.mgufrone.dev",
-    "*.mgufrone.xyz",
-    "mgufrone.xyz",
-    "*.dev.mgufrone.xyz",
-    "dev.mgufrone.xyz",
-    "*.mgufron.com",
-    "mgufron.com",
-    "*.dev.mgufron.com",
-    "dev.mgufron.com",
   ]
   description = "additional domain to be registered as alternate ssl domains"
 }

@@ -246,7 +246,7 @@ resource "kubernetes_default_service_account" "patch_service_account" {
   }
   metadata {
     annotations = {
-      "eks.amazonaws.com/role-arn" = replace(module.trust-s3[0].role_arn, "${kubernetes_namespace.all_namespaces[0].metadata[0].name}:default", "${each.value}:default")
+      "eks.amazonaws.com/role-arn" = replace(module.trust-s3[0].role_arn, "${kubernetes_namespace.all_namespaces[0].metadata[0].name}-default", "${each.value}-default")
     }
     namespace = each.value
   }
@@ -516,7 +516,7 @@ resource "kubernetes_secret" "keda-rabbitmq-auth" {
     namespace = each.value
   }
   data = {
-    host = "amqp://rabbit-monitoring:'${random_string.rabbitmq_password.result}'@rabbitmq-headless.kube-system:5672/"
+    host = "amqp://rabbit-monitoring:${random_string.rabbitmq_password.result}@rabbitmq-headless.kube-system:5672/"
   }
 }
 
