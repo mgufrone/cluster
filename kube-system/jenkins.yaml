@@ -246,6 +246,10 @@ controller:
       keyName: slack-bot
     - name: creds
       keyName: webhook-token
+    - name: github-app
+      keyName: app-id
+    - name: github-app
+      keyName: github-app-private-key
   JCasC:
     configScripts:
       shared-libraries: |
@@ -270,6 +274,17 @@ controller:
             room: "notification"
             teamDomain: "gufy"
             tokenCredentialId: "slack-token"
+      github-app: |
+        credentials:
+          system:
+            domainCredentials:
+            - credentials:
+              - gitHubApp:
+                  id: github-app
+                  appID: ${github-app-app-id}
+                  description: "slack token"
+                  scope: GLOBAL
+                  privateKey: ${github-app-github-app-private-key}
       jenkins-casc-configs: |
         credentials:
           system:

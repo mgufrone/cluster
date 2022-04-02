@@ -29,7 +29,7 @@ variable "worker_version" {
 
 variable "jenkins_version" {
   type = string
-  default = "1.12.0"
+  default = "1.13.0"
   description = "jenkins version"
 }
 variable "jenkins_image" {
