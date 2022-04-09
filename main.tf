@@ -124,6 +124,7 @@ module "eks" {
   subnet_ids                      = module.vpc.public_subnets
   vpc_id                          = module.vpc.vpc_id
   cluster_service_ipv4_cidr       = "10.1.0.0/16"
+  cluster_enabled_log_types = ["audit"]
   self_managed_node_group_defaults = {
     subnet_ids        = module.vpc.public_subnets
     disk_size         = 30
